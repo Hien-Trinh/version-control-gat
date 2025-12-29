@@ -1,0 +1,3 @@
+/*
+Implements gat init. Create the directories and default HEAD.
+*/
