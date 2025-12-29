@@ -57,17 +57,56 @@ int create_default_head() {
   return 0;
 }
 
-int cmd_init(int argc, char* argv[]) {
-  // Root directory
-  if (create_dir(".gat") != 0) return 1;
+char* read_file_content(const char* path, size_t* out_len) {
+  // 1. Open file in read binary mode
+  FILE* fp = fopen(path, "rb");
 
-  // Subdirectories
-  if (create_dir(".gat/objects") != 0) return 1;
-  if (create_dir(".gat/refs") != 0) return 1;
-  if (create_dir(".gat/refs/heads") != 0) return 1;
+  if (fp == NULL) {
+    fprintf(stderr, "Failed to open file");
+    return NULL;
+  }
 
-  // HEAD file
-  if (create_default_head() != 0) return 1;
+  // 2. Calculate file size
+  // Move pointer to the end of the file
+  if (fseek(fp, 0, SEEK_END) != 0) {
+    fprintf(stderr, "fseek failed");
+    fclose(fp);
+    return NULL;
+  }
 
-  return 0;
+  // Get the current position (file size in bytes)
+  long file_size = ftell(fp);
+  if (file_size < 0) {
+    fprintf(stderr, "ftell failed");
+    fclose(fp);
+    return NULL;
+  }
+
+  // Reset pointer to the start of the file
+  rewind(fp);
+
+  // 3. Read file to buffer
+  // Allocate memory with size + 1 for a null terminator
+  char* buffer = malloc(file_size + 1);
+  if (buffer == NULL) {
+    fprintf(stderr, "Memory allocation failed");
+    fclose(fp);
+    return NULL;
+  }
+
+  // fread returns the number of bytes read successfully
+  size_t bytes_read = fread(buffer, 1, file_size, path);
+  if (bytes_read != (size_t)file_size) {
+    fprintf(stderr, "Error: Expected %ld bytes, read %lu\n", file_size, bytes_read);
+    free(buffer);
+    fclose(fp);
+    return NULL;
+  }
+
+  // 4. Null-terminate
+  buffer[file_size] = '\0';      // Null-terminate for safety
+  *out_len = (size_t)file_size;  // Inform the caller how big the file is
+
+  fclose(fp);
+  return buffer;
 }
