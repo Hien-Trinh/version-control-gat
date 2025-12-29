@@ -50,7 +50,7 @@ int create_default_head() {
   }
 
   // Write content to HEAD file
-  fprintf(fp, ref_content);
+  fprintf(fp, "%s", ref_content);
 
   fclose(fp);
 
