@@ -1,3 +1,7 @@
+/*
+Implements helper functions
+ */
+
 #include "utils.h"
 
 #include <stdio.h>

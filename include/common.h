@@ -1,0 +1,3 @@
+/*
+Global configuration for commonly used libraries and macros
+*/
