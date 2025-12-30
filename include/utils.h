@@ -10,6 +10,8 @@ Declaration of helper functions, allowing main.c and object.c to use said functi
 #include <stddef.h>  // Defines size_t
 
 // Function prototypes
+int create_dir(const char* path);
+int create_default_head();
 char* read_file_content(const char* path, size_t* out_len);
 
 #endif

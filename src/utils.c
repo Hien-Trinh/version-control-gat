@@ -25,11 +25,11 @@ int create_dir(const char* path) {
       return -1;
     }
 
-    printf("Initialized empty Git repository in %s\n", path);
+    printf("Initialized empty directory in %s\n", path);
     return 0;
 
   } else {
-    printf("Reinitialized existing Git repository in %s\n", path);
+    printf("Reinitialized existing directory in %s\n", path);
     return 0;
   }
 
@@ -95,7 +95,7 @@ char* read_file_content(const char* path, size_t* out_len) {
   }
 
   // fread returns the number of bytes read successfully
-  size_t bytes_read = fread(buffer, 1, file_size, path);
+  size_t bytes_read = fread(buffer, 1, file_size, fp);
   if (bytes_read != (size_t)file_size) {
     fprintf(stderr, "Error: Expected %ld bytes, read %lu\n", file_size, bytes_read);
     free(buffer);

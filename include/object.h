@@ -4,6 +4,8 @@ Blueprint for gat objects and how the code should handle them in memory
 
 #include <stddef.h>
 
+int cmd_hash_object(int argc, char* argv[]);
+
 typedef enum {
   OBJ_COMMIT,
   OBJ_TREE,

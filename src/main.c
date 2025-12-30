@@ -2,6 +2,7 @@
 CLI entrypoint for 'gat', a mini version control system
 */
 
+#include <object.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -36,6 +37,11 @@ int main(int argc, char* argv[]) {
     // TODO: implement cmd_commit() in commit.c
     // return cmd_commit(argc, argv);
     return 1;
+  }
+
+  // Case 4: hash-object
+  else if (strcmp(command, "hash-object") == 0) {
+    return cmd_hash_object(argc, argv);
   }
 
   // Unknown command
