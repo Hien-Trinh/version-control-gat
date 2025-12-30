@@ -23,7 +23,7 @@ typedef struct {
 /*
 How its used:
 1. Create the struct
-git_object obj;
+gat_object obj;
 
 2. Set the type
 obj.type = OBJ_BLOB;

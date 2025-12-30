@@ -7,7 +7,7 @@ Implements helper functions
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/stat.h>  // Contains mkdir()
+#include <sys/stat.h>  // For mkdir()
 #include <unistd.h>    // Contains getcwd()
 
 // Helper function to create a directory if it doesn't exist
@@ -109,4 +109,13 @@ char* read_file_content(const char* path, size_t* out_len) {
 
   fclose(fp);
   return buffer;
+}
+
+// Convert binary hash to readable hex
+void sha1_to_hex(const unsigned char* binary_hash, char* hex_buffer) {
+  for (int i = 0; i < 20; i++) {
+    sprintf(hex_buffer + i * 2, "%02x", binary_hash[i]);
+  }
+
+  hex_buffer[40] = '\0';
 }
