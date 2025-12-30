@@ -15,7 +15,7 @@ Storing: takes the hash (e.g. a74fe9...), create a directory a7/ (first 2 chars)
 
 #include "utils.h"
 
-gat_object* create_object_blob(const char* filename);
+gat_object* create_object(const char* filename, object_type object_type);
 int write_loose_object(gat_object* blob);
 
 int cmd_hash_object(int argc, char* argv[]) {
@@ -26,7 +26,7 @@ int cmd_hash_object(int argc, char* argv[]) {
 
   const char* filename = argv[2];
 
-  gat_object* blob = create_object_blob(filename);
+  gat_object* blob = create_object(filename, OBJ_BLOB);
 
   // 3. Write to disk
   // if (write_loose_object(blob) != 0) {
@@ -34,15 +34,16 @@ int cmd_hash_object(int argc, char* argv[]) {
   //   return 1;
   // }
 
+  free(blob->data);
   free(blob);
   return 0;
 }
 
 // Create object blob
-gat_object* create_object_blob(const char* filename) {
+gat_object* create_object(const char* filename, object_type object_type) {
   // 0. Create blob
   gat_object* blob = malloc(sizeof(gat_object));
-  blob->type = OBJ_BLOB;
+  blob->type = object_type;
 
   // 1. Applying header
   // Read input file
@@ -51,14 +52,14 @@ gat_object* create_object_blob(const char* filename) {
 
   if (file_content == NULL) {
     fprintf(stderr, "Error reading file: %s\n", filename);
+    free(blob);
     return NULL;
   }
 
   // Create header: "blob <file_length>\0"
   size_t header_length = snprintf(NULL, 0, "blob %lu", file_length) + 1;
-  size_t full_length = header_length + file_length;
-
-  blob->data = (unsigned char*)malloc(full_length);
+  blob->size = header_length + file_length;
+  blob->data = (unsigned char*)malloc(blob->size);
 
   // Add header to blob.data
   sprintf((char*)blob->data, "blob %lu", file_length);
@@ -68,7 +69,7 @@ gat_object* create_object_blob(const char* filename) {
 
   // 2. Hashing
   unsigned char binary_hash[SHA_DIGEST_LENGTH];  // SHA_DIGEST_LENGTH is 20
-  SHA1(blob->data, full_length, binary_hash);
+  SHA1(blob->data, blob->size, binary_hash);
 
   // Convert to hex
   sha1_to_hex(binary_hash, blob->hash);
@@ -107,7 +108,7 @@ int write_loose_object(gat_object* blob) {
 
   // Write to file, binary mode
   FILE* fp = fopen(path, "wb");
-  fwrite(compressed_data, 0, compressed_length, fp);
+  fwrite(compressed_data, 1, compressed_length, fp);
   fclose(fp);
 
   free(compressed_data);
