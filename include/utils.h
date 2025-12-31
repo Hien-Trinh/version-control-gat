@@ -16,7 +16,4 @@ int create_default_head();
 // File read/write
 char* read_file_content(const char* path, size_t* out_len);
 
-// Hashing
-void sha1_to_hex(const unsigned char* binary_hash, char* hex_buffer);
-
 #endif

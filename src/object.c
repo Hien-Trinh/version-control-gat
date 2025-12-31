@@ -15,8 +15,10 @@ Storing: takes the hash (e.g. a74fe9...), create a directory a7/ (first 2 chars)
 
 #include "utils.h"
 
-gat_object* create_object(const char* filename, object_type object_type);
-int write_loose_object(gat_object* blob);
+char* hash_object_to_disk(const char* filename);
+void sha1_to_hex(const unsigned char* binary_hash, char* hex_buffer);
+void create_hex_hash(unsigned char* data, size_t size, char* hex_buffer);
+int write_loose_object(unsigned char* data, size_t size, char* hex_hash);
 
 int cmd_hash_object(int argc, char* argv[]) {
   if (argc < 2) {
@@ -26,73 +28,75 @@ int cmd_hash_object(int argc, char* argv[]) {
 
   const char* filename = argv[2];
 
-  gat_object* blob = create_object(filename, OBJ_BLOB);
+  char* hex_hash = hash_object_to_disk(filename);
+  if (!hex_hash) {
+    fprintf(stderr, "Failed hashing.");
+    return 1;
+  }
 
-  // 3. Write to disk
-  // if (write_loose_object(blob) != 0) {
-  //   fprintf(stderr, "Error writing to disk");
-  //   return 1;
-  // }
-
-  free(blob->data);
-  free(blob);
   return 0;
 }
 
-// Create object blob
-gat_object* create_object(const char* filename, object_type object_type) {
-  // 0. Create blob
-  gat_object* blob = malloc(sizeof(gat_object));
-  blob->type = object_type;
-
-  // 1. Applying header
-  // Read input file
+char* hash_object_to_disk(const char* filename) {
+  static char hex_hash[41];  // Static buffer to return
   size_t file_length;
   char* file_content = read_file_content(filename, &file_length);
 
-  if (file_content == NULL) {
-    fprintf(stderr, "Error reading file: %s\n", filename);
-    free(blob);
-    return NULL;
+  if (!file_content) return NULL;
+
+  // 1. Create Header
+  size_t header_length = snprintf(NULL, 0, "blob %lu", file_length) + 1;
+  size_t full_length = header_length + file_length;
+  unsigned char* full_data = malloc(full_length);
+
+  sprintf((char*)full_data, "blob %lu", file_length);
+  memcpy(full_data + header_length, file_content, file_length);
+
+  // 2. Hash
+  create_hex_hash(full_data, full_length, hex_hash);
+
+  // 3. Write
+  write_loose_object(full_data, full_length, hex_hash);
+
+  free(full_data);
+  free(file_content);
+
+  return hex_hash;
+}
+
+// Convert binary hash to readable hex
+void sha1_to_hex(const unsigned char* binary_hash, char* hex_buffer) {
+  for (int i = 0; i < 20; i++) {
+    sprintf(hex_buffer + i * 2, "%02x", binary_hash[i]);
   }
 
-  // Create header: "blob <file_length>\0"
-  size_t header_length = snprintf(NULL, 0, "blob %lu", file_length) + 1;
-  blob->size = header_length + file_length;
-  blob->data = (unsigned char*)malloc(blob->size);
+  hex_buffer[40] = '\0';
+}
 
-  // Add header to blob.data
-  sprintf((char*)blob->data, "blob %lu", file_length);
-
-  // Add file_content after the null-terminator
-  memcpy(blob->data + header_length, file_content, file_length);
-
-  // 2. Hashing
+// Create hex hash from data
+void create_hex_hash(unsigned char* data, size_t size, char* hex_buffer) {
   unsigned char binary_hash[SHA_DIGEST_LENGTH];  // SHA_DIGEST_LENGTH is 20
-  SHA1(blob->data, blob->size, binary_hash);
+  SHA1(data, size, binary_hash);
 
   // Convert to hex
-  sha1_to_hex(binary_hash, blob->hash);
-  printf("Hex hash: %s\n", blob->hash);
-
-  free(file_content);  // from read_file_content()
-  return blob;
+  sha1_to_hex(binary_hash, hex_buffer);
+  printf("Hex hash: %s\n", hex_buffer);
 }
 
 // Compress and write to disk
-int write_loose_object(gat_object* blob) {
+int write_loose_object(unsigned char* data, size_t size, char* hex_hash) {
   // 1. Create path
   char path[256];
 
   // Directory path is the first 2 chars
-  sprintf(path, ".gat/objects/%.2s", blob->hash);
+  sprintf(path, ".gat/objects/%.2s", hex_hash);
   create_dir(path);
 
   // Filename is the remaining chars
-  sprintf(path, ".gat/objects/%.2s/%s", blob->hash, blob->hash + 2);
+  sprintf(path, ".gat/objects/%.2s/%s", hex_hash, hex_hash + 2);
 
   // 2. Compress using zlib
-  unsigned long compressed_length = compressBound(blob->size);  // Calculates the upper bound for compressed blob.size
+  unsigned long compressed_length = compressBound(size);  // Calculates the upper bound for compressed blob.size
   unsigned char* compressed_data = malloc(compressed_length);
   if (compressed_data == NULL) {
     fprintf(stderr, "Failed to allocate memory for compression");
@@ -100,7 +104,7 @@ int write_loose_object(gat_object* blob) {
   }
 
   // zlib compress()
-  int result = compress(compressed_data, &compressed_length, blob->data, blob->size);
+  int result = compress(compressed_data, &compressed_length, data, size);
   if (result != Z_OK) {  // Z_OK = 0
     fprintf(stderr, "Failed to compress");
     return -1;

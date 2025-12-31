@@ -3,8 +3,7 @@ Blueprint for gat objects and how the code should handle them in memory
 */
 
 #include <stddef.h>
-
-int cmd_hash_object(int argc, char* argv[]);
+#include <stdint.h>
 
 typedef enum {
   OBJ_COMMIT,
@@ -20,19 +19,23 @@ typedef struct {
   char hash[41];  // 40 chars of SHA-1 + 1 terminator
 } gat_object;
 
-/*
-How its used:
-1. Create the struct
-gat_object obj;
+// Git Index Entry Structure (aligned to match binary format on disk)
+// We use __attribute__((packed)) to stop C from adding padding bytes.
+typedef struct __attribute__((packed)) {
+  uint32_t ctime_sec;      // Creation time (seconds)
+  uint32_t ctime_nano;     // Creation time (nanoseconds)
+  uint32_t mtime_sec;      // Modification time (seconds)
+  uint32_t mtime_nano;     // Modification time (nanoseconds)
+  uint32_t dev;            // Device ID
+  uint32_t ino;            // Inode
+  uint32_t mode;           // File mode (permissions)
+  uint32_t uid;            // User ID
+  uint32_t gid;            // Group ID
+  uint32_t file_size;      // File size
+  unsigned char sha1[20];  // The hash of the blob
+  uint16_t flags;          // Flags (length of filename)
+                           // The filename follows immediately after this struct in memory
+} index_entry_t;
 
-2. Set the type
-obj.type = OBJ_BLOB;
-
-3. Load data
-obj.data = read_file("test.txt", &obj.size);
-
-4. Calculate Hash
-sha1_hash(obj.data, obj.size, obj.hash);
-
-Now 'obj' contains everything needed to write to the .gat folder
-*/
+int cmd_hash_object(int argc, char* argv[]);
+char* hash_object_to_disk(const char* filename);
