@@ -4,11 +4,13 @@ Implements helper functions
 
 #include "utils.h"
 
+#include <openssl/sha.h>  // For SHA1()
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>  // For mkdir()
 #include <unistd.h>    // Contains getcwd()
+#include <zlib.h>      // For deflate()
 
 // Helper function to create a directory if it doesn't exist
 int create_dir(const char* path) {
@@ -109,4 +111,84 @@ char* read_file_content(const char* path, size_t* out_len) {
 
   fclose(fp);
   return buffer;
+}
+
+// Compress and write to disk
+int write_loose_object(unsigned char* data, size_t size, char* hex_hash) {
+  // 1. Create path
+  char path[256];
+
+  // Directory path is the first 2 chars
+  sprintf(path, ".gat/objects/%.2s", hex_hash);
+  create_dir(path);
+
+  // Filename is the remaining chars
+  sprintf(path, ".gat/objects/%.2s/%s", hex_hash, hex_hash + 2);
+
+  // 2. Compress using zlib
+  unsigned long compressed_length = compressBound(size);  // Calculates the upper bound for compressed blob.size
+  unsigned char* compressed_data = malloc(compressed_length);
+  if (compressed_data == NULL) {
+    fprintf(stderr, "Failed to allocate memory for compression");
+    return -1;
+  }
+
+  // zlib compress()
+  int result = compress(compressed_data, &compressed_length, data, size);
+  if (result != Z_OK) {  // Z_OK = 0
+    fprintf(stderr, "Failed to compress");
+    return -1;
+  }
+
+  // Write to file, binary mode
+  FILE* fp = fopen(path, "wb");
+  fwrite(compressed_data, 1, compressed_length, fp);
+  fclose(fp);
+
+  free(compressed_data);
+  return 0;
+}
+
+// Convert binary hash to readable hex
+void sha1_to_hex(const unsigned char* binary_hash, char* hex_buffer) {
+  for (int i = 0; i < 20; i++) {
+    sprintf(hex_buffer + i * 2, "%02x", binary_hash[i]);
+  }
+
+  hex_buffer[40] = '\0';
+}
+
+// Helper: Converts a single hex char (0-9, a-f) to its integer value (0-15)
+int hex_char_to_int(char c) {
+  if (c >= '0' && c <= '9') return c - '0';
+  if (c >= 'a' && c <= 'f') return c - 'a' + 10;
+  if (c >= 'A' && c <= 'F') return c - 'A' + 10;
+  return -1;
+}
+
+// Converts "a94..." (40 chars) -> binary buffer (20 bytes)
+void hex_to_sha1(const char* hex_hash, unsigned char* binary_buffer) {
+  for (int i = 0; i < 20; i++) {
+    // We take two hex chars (e.g., "a" and "9") to make one byte
+    int low = hex_char_to_int(hex_hash[i * 2]);
+    int high = hex_char_to_int(hex_hash[i * 2 + 1]);
+
+    // Just in case
+    if (low == -1 || high == -1) {
+      fprintf(stderr, "Invalid hex input");
+    }
+
+    // Combine them: (0xa << 4) | 0x9  ==  0xa0 | 0x09  ==  0xa9
+    binary_buffer[i] = (unsigned char)((high << 4) | low);
+  }
+}
+
+// Create hex hash from data
+void create_hex_hash(unsigned char* data, size_t size, char* hex_buffer) {
+  unsigned char binary_hash[SHA_DIGEST_LENGTH];  // SHA_DIGEST_LENGTH is 20
+  SHA1(data, size, binary_hash);
+
+  // Convert to hex
+  sha1_to_hex(binary_hash, hex_buffer);
+  printf("Hex hash: %s\n", hex_buffer);
 }

@@ -14,7 +14,7 @@ add new file's path and hash, sort the list, writes into disk.
 #include "object.h"
 #include "utils.h"
 
-index_entry_t create_index_entry(const char* path, const char* hex_hash, struct stat st);
+index_entry_t create_index_entry(const char* path, const char* hex_hash, struct stat* st);
 
 int cmd_add(int argc, char* argv[]) {
   if (argc < 3) {
@@ -34,12 +34,36 @@ int cmd_add(int argc, char* argv[]) {
   char* hex_hash = hash_object_to_disk(filename);
 
   // 3. Create the entry
-  index_entry_t entry = create_index_entry(filename, hex_hash, st);
+  index_entry_t entry = create_index_entry(filename, hex_hash, &st);
 
   return 0;
 }
 
-index_entry_t create_index_entry(const char* path, const char* hex_hash, struct stat st) {
+index_entry_t create_index_entry(const char* path, const char* hex_hash, struct stat* st) {
   index_entry_t entry;
+
+  // Clear memory
+  memset(&entry, 0, sizeof(index_entry_t));
+
+  // Fill in metadata
+  entry.ctime_sec = htonl((uint32_t)st->st_ctimespec.tv_sec);
+  entry.ctime_nano = htonl((uint32_t)st->st_ctimespec.tv_nsec);
+  entry.mtime_sec = htonl((uint32_t)st->st_mtimespec.tv_sec);
+  entry.mtime_nano = htonl((uint32_t)st->st_mtimespec.tv_nsec);
+  entry.dev = htonl((uint32_t)st->st_dev);
+  entry.ino = htonl((uint32_t)st->st_ino);
+  entry.mode = htonl((uint32_t)st->st_mode);
+  entry.uid = htonl((uint32_t)st->st_uid);
+  entry.gid = htonl((uint32_t)st->st_gid);
+  entry.file_size = htonl((uint32_t)st->st_size);
+
+  // Convert Hex Hash back to Binary
+  hex_to_sha1(hex_hash, entry.sha1);
+
+  // Flags
+  size_t path_length = strlen(path);
+  if (path_length > 0xFFF) path_length = 0xFFF;
+  entry.flags = htons((uint16_t)path_length);
+
   return entry;
 }
