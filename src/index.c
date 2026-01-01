@@ -36,6 +36,29 @@ int cmd_add(int argc, char* argv[]) {
   // 3. Create the entry
   index_entry_t entry = create_index_entry(filename, hex_hash, &st);
 
+  // 4. Write to .gat/index
+  // TODO: handle sort and replacement
+  FILE* fp = fopen(".gat/index", "ab");
+  if (fp == NULL) {
+    fprintf(stderr, "Failed to open index");
+    return 1;
+  }
+
+  // Write the struct
+  fwrite(&entry, sizeof(index_entry_t), 1, fp);
+
+  // Write the filename
+  fwrite(filename, strlen(filename), 1, fp);
+
+  // 5. Padding
+  // Index entries are 8-byte aligned
+  char padding[8] = {0};
+  size_t padding_length = 8 - (sizeof(index_entry_t) + strlen(filename)) % 8;
+  fwrite(padding, 1, padding_length, fp);
+
+  fclose(fp);
+  printf("Added %s to index\n", filename);
+
   return 0;
 }
 

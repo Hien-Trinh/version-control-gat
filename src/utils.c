@@ -142,7 +142,7 @@ int write_loose_object(unsigned char* data, size_t size, char* hex_hash) {
 
   // Write to file, binary mode
   FILE* fp = fopen(path, "wb");
-  fwrite(compressed_data, 1, compressed_length, fp);
+  fwrite(compressed_data, compressed_length, 1, fp);
   fclose(fp);
 
   free(compressed_data);
